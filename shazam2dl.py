@@ -24,7 +24,7 @@ fb_pass = sys.argv[2]
 
 uid_cookie, fat_cookie = shazam_api.get_api_cookie(fb_login, fb_pass)
 html_parser = HTMLParser.HTMLParser()
-already_dl = [ f for f in listdir(dl_dir) if isfile(join(dl_dir,f)) ]
+already_dl = [ f for f in listdir(unicode(dl_dir)) if isfile(join(dl_dir,f)) ]
 FNULL = open('/dev/null' , 'w')
 
 def add_proper_headers(http_req, accept, referer, cookie = ""):
@@ -136,7 +136,6 @@ def sendemail(artist, titre):
     try:
         smtpObj = smtplib.SMTP('smtp.orange.fr')
         smtpObj.sendmail(sender, receivers, message)         
-        print "Email successfuly sent !"
     except SMTPException:
         print "Error: unable to send email"
     
@@ -167,7 +166,6 @@ for tag in tags:
     if dl_result == True:
         subprocess.Popen(["/usr/local/bin/eyeD3", "--v1", "-a", artist, "-t", title, dl_dir + tag['filename']], stdout=FNULL, stderr=FNULL)
         subprocess.Popen(["/usr/local/bin/eyeD3", "--v2", "-a", artist, "-t", title, dl_dir + tag['filename']], stdout=FNULL, stderr=FNULL)
-        #subprocess.Popen(["chown", "www-data:www-data", dl_dir + tag['filename']]) 
-        #sendemail(artist, title)
+        sendemail(artist, title)
     else:
         print "FAILED !!"
