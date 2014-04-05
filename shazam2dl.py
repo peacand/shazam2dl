@@ -1,4 +1,4 @@
-#!/usr/bin/python2.6
+#!/usr/bin/python2.7
 # -*- coding: utf-8 -*- 
 
 import urllib
@@ -11,14 +11,16 @@ import os
 import time
 import subprocess
 import shazam_api
+import shazam_parser
 import smtplib
+import pprint
+import shutil
 from os import listdir, remove
 from os.path import isfile, join, getsize
 
-if os.path.ismount("/data/musique/files/Musique") == False:
-    sys.exit(1)
+pp = pprint.PrettyPrinter(indent=4)
 
-dl_dir = "/data/musique/files/Musique/"
+dl_dir = "/home/michael/Music/shazam2dl/"
 fb_login = sys.argv[1]
 fb_pass = sys.argv[2]
 
@@ -38,7 +40,7 @@ def add_proper_headers(http_req, accept, referer, cookie = ""):
 
 
 def get_shazam_tags(fat_cookie, uid_cookie):
-    tags = []
+    my_tags = []
     req = urllib2.Request("http://www.shazam.com/fragment/myshazam?size=large")
     add_proper_headers( req, 
                         accept = "application/json, text/javascript, */*; q=0.01",
@@ -46,18 +48,16 @@ def get_shazam_tags(fat_cookie, uid_cookie):
                         cookie = "fat=" + fat_cookie + "; uid=" + uid_cookie + ";"
                       )
     resp = urllib2.urlopen(req)
-    content = json.loads(resp.read())['feed'].split('\n')
+    json_content = json.loads(resp.read())['feed']
+    all_tags = shazam_parser.parse( html_parser.unescape(json_content) )
 
-    i = 0
-    for line in content:
-        if len(re.findall('tg-title">(.*)<', line)) > 0:
-            title = re.findall('url">(.*)</a', content[i])[0]
-            artist = re.findall('tg-artist">(.*)<', content[i+1])[0]
-            filename = html_parser.unescape(title + '-' + artist + ".mp3")
-            if { 'artist' : artist, 'title' : title } not in tags and filename not in already_dl:
-                tags += [{ 'artist' : artist, 'title' : title, 'filename' : filename }]
-        i += 1
-    return tags
+    for tag in all_tags:
+            artist = re.sub('/', '-', tag[0])
+            title = re.sub('/', '-', tag[1])
+            filename = title + '-' + artist + ".mp3"
+            if { 'artist' : artist, 'title' : title } not in my_tags and filename not in already_dl:
+                my_tags += [{ 'artist' : artist, 'title' : title, 'filename' : filename }]
+    return my_tags
     
 def get_youtube_links(title, artist):
     links = []
@@ -71,58 +71,16 @@ def get_youtube_links(title, artist):
         links += [entry['link'][0]['href']]
     return links
 
-def try_dl_mp3_1(youtube_link, filename):
-    dl_link = "http://youtubeinmp3.com/fetch/?video=" + youtube_link
-    print "Try to download from " + dl_link + " ... "
-    req = urllib2.Request(dl_link)
-    add_proper_headers( req,
-                        accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                        referer = "http://youtubeinmp3.com/api"
-                      )
-    resp = urllib2.urlopen(req)
-    fd = open(dl_dir + filename, "w")
-    fd.write(resp.read())
-    fd.flush()
-    fd.close()
-    filesize = getsize(dl_dir + filename)
-    if filesize < 1048576:
-        remove(dl_dir + filename)    
-        return False
-    else:
+def download_mp3(youtube_link, filename):
+    print '    + Try to download from ' + youtube_link
+    try:
+        filename_tmp = '.'.join(filename.split('.')[:-1]) + '.%(ext)s'
+        subprocess.call(["/usr/bin/youtube-dl", "--quiet", "--extract-audio", '--output='+filename_tmp, '--audio-format=mp3', youtube_link])
+        shutil.move(filename, dl_dir + filename)
         return True
-
-def try_dl_mp3_2(youtube_link, filename):
-    convert_url = "http://www.vidtomp3.com/cc/conversioncloud.php"
-    post_data = { 'mediaurl' : youtube_links }
-    post_data = urllib.urlencode(post_data)
-    req = urllib2.Request(convert_url)
-    add_proper_headers( req,
-                        accept = "text/javascript, application/javascript, application/ecmascript, application/x-ecmascript, */*; q=0.01",
-                        referer = "http://www.vidtomp3.com/process.php"
-                      )
-    resp = urllib2.urlopen(req, post_data)
-    server, video_id, key = re.findall('([a-zA-Z0-9]+).vidtomp3.com.*\?videoid=([0-9]+)&key=(.*)"', resp.read())[0]
-
-    status_url = "http://"+server+".vidtomp3.com/api/?videoid="+video_id+"&key=" + key
-    req = urllib2.Request(status_url)
-    resp = urllib2.urlopen(req)
-    dl_url = re.findall('<downloadurl><\!\[CDATA\[(.*)/\]\]></downloadurl>', resp.read())[0]
-
-    dl_url = urllib.unquote(dl_url)
-    print "Try to download from " + dl_url + " ... "
-    req = urllib2.Request(dl_url)
-    resp = urllib2.urlopen(req)
-
-    fd = open(dl_dir + filename, "w")
-    fd.write(resp.read())
-    fd.flush()
-    fd.close()
-    filesize = getsize(dl_dir + filename)
-    if filesize < 1048576:
-        remove(dl_dir + filename)    
+    except Exception,e:
+        print str(e)
         return False
-    else:
-        return True
 
 def sendemail(artist, titre):
     sender = 'molho.michael@orange.fr'
@@ -139,33 +97,28 @@ def sendemail(artist, titre):
     except SMTPException:
         print "Error: unable to send email"
     
-
-
 tags = get_shazam_tags(fat_cookie, uid_cookie)
 
 for tag in tags:
     dl_result = False
-    title = unicode(html_parser.unescape(tag['title'])).encode('utf-8')
-    artist = unicode(html_parser.unescape(tag['artist'])).encode('utf-8')
+    title = unicode(tag['title']).encode('utf-8')
+    artist = unicode(tag['artist']).encode('utf-8')
 
     print "######## " + title + " -- " + artist
 
     youtube_links = get_youtube_links(title, artist)
 
     for link in youtube_links:
-        dl_result = try_dl_mp3_1( link, tag['filename'] )
+        dl_result = download_mp3( link, tag['filename'] )
         if dl_result == True:
+            print '    + Download succeed !'
             break
-
-    if dl_result == False:
-        for link in youtube_links:
-            dl_result = try_dl_mp3_2( link, tag['filename'] )
-            if dl_result == True:
-                break
+        else:
+            print '    + Failed ! Try again ...'
 
     if dl_result == True:
         subprocess.Popen(["/usr/local/bin/eyeD3", "--v1", "-a", artist, "-t", title, dl_dir + tag['filename']], stdout=FNULL, stderr=FNULL)
         subprocess.Popen(["/usr/local/bin/eyeD3", "--v2", "-a", artist, "-t", title, dl_dir + tag['filename']], stdout=FNULL, stderr=FNULL)
-        sendemail(artist, title)
+        #sendemail(artist, title)
     else:
-        print "FAILED !!"
+        print "    + IMPOSSIBLE TO DOWNLOAD !"

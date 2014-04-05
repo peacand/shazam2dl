@@ -15,8 +15,6 @@ global user_id
 global access_token
 html_parser = HTMLParser.HTMLParser()
 
-
-
 class MyHTTPRedirectHandler(urllib2.HTTPRedirectHandler):
     def http_error_302(self, req, fp, code, msg, headers):
         global cookies
@@ -58,7 +56,7 @@ def add_proper_headers(http_req, accept, referer="", cookie = ""):
 
 
 def get_post_params():
-    login_get = "https://www.facebook.com/login.php?skip_api_login=1&api_key=210827375150&signed_next=1&next=https%3A%2F%2Fwww.facebook.com%2Fdialog%2Foauth%3Fredirect_uri%3Dhttp%253A%252F%252Fstatic.ak.facebook.com%252Fconnect%252Fxd_arbiter.php%253Fversion%253D28%2523cb%253Dfbad4334335328%2526domain%253Dwww.shazam.com%2526origin%253Dhttp%25253A%25252F%25252Fwww.shazam.com%25252Ff2708561c4c729%2526relation%253Dopener%2526frame%253Df2fc871b8f8b862%26display%3Dpopup%26scope%3Demail%252Cpublish_actions%26response_type%3Dtoken%252Csigned_request%26domain%3Dwww.shazam.com%26client_id%3D210827375150%26ret%3Dlogin%26sdk%3Djoey&cancel_uri=http%3A%2F%2Fstatic.ak.facebook.com%2Fconnect%2Fxd_arbiter.php%3Fversion%3D28%23cb%3Dfbad4334335328%26domain%3Dwww.shazam.com%26origin%3Dhttp%253A%252F%252Fwww.shazam.com%252Ff2708561c4c729%26relation%3Dopener%26frame%3Df2fc871b8f8b862%26error%3Daccess_denied%26error_code%3D200%26error_description%3DPermissions%2Berror%26error_reason%3Duser_denied%26e2e%3D%257B%257D&display=popup"
+    login_get = "https://www.facebook.com/login.php?skip_api_login=1&api_key=210827375150&signed_next=1&next=https%3A%2F%2Fwww.facebook.com%2Fdialog%2Foauth%3Fredirect_uri%3Dhttp%253A%252F%252Fstatic.ak.facebook.com%252Fconnect%252Fxd_arbiter%252FwTH8U0osOYl.js%253Fversion%253D40%2523cb%253Df3c228e9a4706b2%2526domain%253Dwww.shazam.com%2526origin%253Dhttp%25253A%25252F%25252Fwww.shazam.com%25252Ff2034f83cb7b1b6%2526relation%253Dopener%2526frame%253Df3ea495ebf74802%26display%3Dpopup%26scope%3Demail%252Cpublish_actions%26response_type%3Dtoken%252Csigned_request%26domain%3Dwww.shazam.com%26client_id%3D210827375150%26ret%3Dlogin%26sdk%3Djoey&cancel_uri=http%3A%2F%2Fstatic.ak.facebook.com%2Fconnect%2Fxd_arbiter%2FwTH8U0osOYl.js%3Fversion%3D40%23cb%3Df3c228e9a4706b2%26domain%3Dwww.shazam.com%26origin%3Dhttp%253A%252F%252Fwww.shazam.com%252Ff2034f83cb7b1b6%26relation%3Dopener%26frame%3Df3ea495ebf74802%26error%3Daccess_denied%26error_code%3D200%26error_description%3DPermissions%2Berror%26error_reason%3Duser_denied%26e2e%3D%257B%257D&display=popup"
 
     resp = urllib2.urlopen(login_get)
     resp_content = resp.read()
@@ -73,6 +71,8 @@ def get_post_params():
 
 def get_api_cookie(login, password):
     global cookies
+    global user_id
+    global access_token
 
     #login_post_url, formated_cookies, param_lsd, param_lgnrnd, param_next = get_post_params()
     login_post_url, formated_cookies, param_lsd, param_lgnrnd = get_post_params()
