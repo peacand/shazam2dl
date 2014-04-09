@@ -15,18 +15,22 @@ import shazam_parser
 import smtplib
 import pprint
 import shutil
+import optparse
 from os import listdir, remove
 from os.path import isfile, join, getsize
 
-pp = pprint.PrettyPrinter(indent=4)
 
-dl_dir = "/home/michael/Music/shazam2dl/"
-fb_login = sys.argv[1]
-fb_pass = sys.argv[2]
+####################
+### Global Vars
+###################
 
-uid_cookie, fat_cookie = shazam_api.get_api_cookie(fb_login, fb_pass)
+fb_login = ""
+fb_pass = ""
+dl_dir = ""
+
+
 html_parser = HTMLParser.HTMLParser()
-already_dl = [ f for f in listdir(unicode(dl_dir)) if isfile(join(dl_dir,f)) ]
+pp = pprint.PrettyPrinter(indent=4)
 FNULL = open('/dev/null' , 'w')
 
 def add_proper_headers(http_req, accept, referer, cookie = ""):
@@ -82,22 +86,52 @@ def download_mp3(youtube_link, filename):
         print str(e)
         return False
 
-def sendemail(artist, titre):
-    sender = 'molho.michael@orange.fr'
-    receivers = ['michael.molho@gmail.com']
+def send_report(status):
+    sender = 'XXXXXXXXXXXXXXXXXXX'
+    receiver = 'XXXXXXXXXXXXXXXX'
 
-    message =  "From: shazam2dl <shazam2dl@orange.fr>\n"
-    message += "To: michael <michael.molho@gmail.com>\n"
-    message += "Subject: [shazam2dl] Nouveau morceau telecharge\n\n"
-    message += artist + " : " + titre
+    body = ""
+
+    for song in status:
+        body += song['artist'] + ' || ' + song['title'] + '  (' + song['status'] + ')\n'
 
     try:
-        smtpObj = smtplib.SMTP('smtp.orange.fr')
-        smtpObj.sendmail(sender, receivers, message)         
+        os.system('echo "'+body+'" | mail --to "'+receiver+'" -a "From: '+sender+'" -s "[shazam2dl] Download Report"')
     except SMTPException:
-        print "Error: unable to send email"
+        print "    + Error: unable to send email"
     
+
+
+####################
+## Parse Args
+###################
+
+usage = "usage: %prog [options] facebook-login facebook-password target-dir"
+parser = optparse.OptionParser(usage=usage)
+opt, args = parser.parse_args()
+
+if len(args) != 3:
+    parser.print_help()
+    sys.exit(1)
+else:
+    fb_login = args[0]
+    fb_pass = args[1]
+    dl_dir = args[2]
+
+
+
+####################
+## MAIN
+###################
+
+uid_cookie, fat_cookie = shazam_api.get_api_cookie(fb_login, fb_pass)
+already_dl = [ f for f in listdir(unicode(dl_dir)) if isfile(join(dl_dir,f)) ]
 tags = get_shazam_tags(fat_cookie, uid_cookie)
+status = []
+
+if len(tags) == 0:
+    print 'Noting to do ...'
+    sys.exit(0)
 
 for tag in tags:
     dl_result = False
@@ -117,8 +151,17 @@ for tag in tags:
             print '    + Failed ! Try again ...'
 
     if dl_result == True:
-        subprocess.Popen(["/usr/local/bin/eyeD3", "--v1", "-a", artist, "-t", title, dl_dir + tag['filename']], stdout=FNULL, stderr=FNULL)
-        subprocess.Popen(["/usr/local/bin/eyeD3", "--v2", "-a", artist, "-t", title, dl_dir + tag['filename']], stdout=FNULL, stderr=FNULL)
-        #sendemail(artist, title)
+        eyed3 = subprocess.call(["/usr/local/bin/eyeD3", "-a", artist, "-t", title, dl_dir + tag['filename']], stdout=FNULL, stderr=FNULL)
+        eyed3 = subprocess.call(["/usr/local/bin/eyeD3", "--to-v1.1", dl_dir + tag['filename']], stdout=FNULL, stderr=FNULL)
+        status += [{'artist' : artist, 'title' : title, 'status' : 'OK'}]
     else:
+        status += [{'artist' : artist, 'title' : title, 'status' : '*FAILED*'}]
         print "    + IMPOSSIBLE TO DOWNLOAD !"
+
+print "    + Sending report !"
+
+######################
+## SEND REPORT
+#####################
+
+send_report(status)
