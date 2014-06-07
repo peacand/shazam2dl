@@ -54,10 +54,11 @@ def get_shazam_tags(fat_cookie, uid_cookie):
     resp = urllib2.urlopen(req)
     json_content = json.loads(resp.read())['feed']
     all_tags = shazam_parser.parse( html_parser.unescape(json_content) )
+    
 
     for tag in all_tags:
-            artist = re.sub('/', '-', tag[0])
-            title = re.sub('/', '-', tag[1])
+            artist = re.sub('/', '-', tag[0]).strip()
+            title = re.sub('/', '-', tag[1]).strip()
             filename = title + '-' + artist + ".mp3"
             if { 'artist' : artist, 'title' : title } not in my_tags and filename not in already_dl:
                 my_tags += [{ 'artist' : artist, 'title' : title, 'filename' : filename }]
@@ -80,15 +81,15 @@ def download_mp3(youtube_link, filename):
     try:
         filename_tmp = '.'.join(filename.split('.')[:-1]) + '.%(ext)s'
         subprocess.call(["/usr/bin/youtube-dl", "--quiet", "--extract-audio", '--output='+filename_tmp, '--audio-format=mp3', youtube_link])
-        shutil.move(filename, dl_dir + filename)
+        shutil.move(filename, dl_dir + 'to-valid-' + filename )
         return True
     except Exception,e:
         print str(e)
         return False
 
 def send_report(status):
-    sender = 'XXXXXXXXXXXXXXXXXXX'
-    receiver = 'XXXXXXXXXXXXXXXX'
+    sender = 'shazam2dl <dedi.mmobox@gmail.com>'
+    receiver = 'michael.molho@gmail.com'
 
     body = ""
 
@@ -151,6 +152,10 @@ for tag in tags:
             print '    + Failed ! Try again ...'
 
     if dl_result == True:
+        print '    + Reencoding ...'
+        reenc = subprocess.call(["/usr/bin/lame", dl_dir + 'to-valid-' + tag['filename'], dl_dir + tag['filename']], stdout=FNULL, stderr=FNULL)
+        os.remove( dl_dir + 'to-valid-' + tag['filename'] )
+        print '    + Writing mp3 tags ...'
         eyed3 = subprocess.call(["/usr/local/bin/eyeD3", "-a", artist, "-t", title, dl_dir + tag['filename']], stdout=FNULL, stderr=FNULL)
         eyed3 = subprocess.call(["/usr/local/bin/eyeD3", "--to-v1.1", dl_dir + tag['filename']], stdout=FNULL, stderr=FNULL)
         status += [{'artist' : artist, 'title' : title, 'status' : 'OK'}]
@@ -158,7 +163,7 @@ for tag in tags:
         status += [{'artist' : artist, 'title' : title, 'status' : '*FAILED*'}]
         print "    + IMPOSSIBLE TO DOWNLOAD !"
 
-print "    + Sending report !"
+print "+ Sending report !"
 
 ######################
 ## SEND REPORT
