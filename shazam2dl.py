@@ -33,6 +33,15 @@ html_parser = HTMLParser.HTMLParser()
 pp = pprint.PrettyPrinter(indent=4)
 FNULL = open('/dev/null' , 'w')
 
+def normalize_str(elem):
+    norm = re.sub(r'/', '-', elem)
+    norm = re.sub(r'[/\'",;]+', '', norm)
+    norm = re.sub(r'&', 'and', norm)
+    norm = norm.strip()
+    if norm[0:3] == "by ":
+       norm = norm[3:]
+    return norm
+
 def add_proper_headers(http_req, accept, referer, cookie = ""):
     http_req.add_header('User-Agent', "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:12.0) Gecko/20100101 Firefox/12.0")
     http_req.add_header('Accept', accept)
@@ -57,8 +66,9 @@ def get_shazam_tags(fat_cookie, uid_cookie):
     
 
     for tag in all_tags:
-            artist = re.sub('/', '-', tag[0]).strip()
-            title = re.sub('/', '-', tag[1]).strip()
+            artist = normalize_str(tag[0])
+            title = normalize_str(tag[1])
+            print artist + ' : ' + title
             filename = title + '-' + artist + ".mp3"
             if { 'artist' : artist, 'title' : title } not in my_tags and filename not in already_dl:
                 my_tags += [{ 'artist' : artist, 'title' : title, 'filename' : filename }]
