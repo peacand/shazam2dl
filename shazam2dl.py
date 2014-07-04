@@ -13,6 +13,9 @@ import subprocess
 import shazam_api
 import shazam_parser
 import smtplib
+from email.MIMEMultipart import MIMEMultipart
+from email.MIMEText import MIMEText
+from email.Utils import COMMASPACE, formatdate
 import pprint
 import shutil
 import optparse
@@ -35,8 +38,9 @@ FNULL = open('/dev/null' , 'w')
 
 def normalize_str(elem):
     norm = re.sub(r'/', '-', elem)
-    norm = re.sub(r'[/\'",;]+', '', norm)
+    norm = re.sub(r'[/",;]+', '', norm)
     norm = re.sub(r'&', 'and', norm)
+    norm = re.sub(r'\(.+\)', '', norm)
     norm = norm.strip()
     if norm[0:3] == "by ":
        norm = norm[3:]
@@ -68,7 +72,6 @@ def get_shazam_tags(fat_cookie, uid_cookie):
     for tag in all_tags:
             artist = normalize_str(tag[0])
             title = normalize_str(tag[1])
-            print artist + ' : ' + title
             filename = title + '-' + artist + ".mp3"
             if { 'artist' : artist, 'title' : title } not in my_tags and filename not in already_dl:
                 my_tags += [{ 'artist' : artist, 'title' : title, 'filename' : filename }]
@@ -97,19 +100,25 @@ def download_mp3(youtube_link, filename):
         print str(e)
         return False
 
-def send_report(status):
-    sender = 'shazam2dl <dedi.mmobox@gmail.com>'
-    receiver = 'michael.molho@gmail.com'
+
+def send_report(status,to):
+    from_addr = "mmobox <shazam2dl@mmobox.fr>"
+
+    msg = MIMEMultipart()
+    msg['From'] = from_addr
+    msg['To'] = COMMASPACE.join(to)
+    msg['Date'] = formatdate(localtime=True)
+    msg['Subject'] = "[shazam2dl] Download Report"
 
     body = ""
-
     for song in status:
         body += song['artist'] + ' || ' + song['title'] + '  (' + song['status'] + ')\n'
 
-    try:
-        os.system('echo "'+body+'" | mail --to "'+receiver+'" -a "From: '+sender+'" -s "[shazam2dl] Download Report"')
-    except SMTPException:
-        print "    + Error: unable to send email"
+    msg.attach( MIMEText(body) )
+
+    smtp = smtplib.SMTP("localhost")
+    smtp.sendmail(from_addr, to, msg.as_string() )
+    smtp.close()
     
 
 
@@ -179,4 +188,4 @@ print "+ Sending report !"
 ## SEND REPORT
 #####################
 
-send_report(status)
+send_report(status,["michael.molho@gmail.com"])
