@@ -38,7 +38,7 @@ FNULL = open('/dev/null' , 'w')
 
 def normalize_str(elem):
     norm = re.sub(r'/', '-', elem)
-    norm = re.sub(r'[/",;]+', '', norm)
+    norm = re.sub(r'[/",;\?]+', '', norm)
     norm = re.sub(r'&', 'and', norm)
     norm = re.sub(r'\(.+\)', '', norm)
     norm = norm.strip()
@@ -64,8 +64,9 @@ def get_shazam_tags(fat_cookie, uid_cookie):
                         referer = "http://www.shazam.com/myshazam",
                         cookie = "fat=" + fat_cookie + "; uid=" + uid_cookie + ";"
                       )
-    resp = urllib2.urlopen(req)
-    json_content = json.loads(resp.read())['feed']
+    resp = urllib2.urlopen(req).read()
+    #pp.pprint( json.loads(resp)['next'] )
+    json_content = json.loads(resp)['feed']
     all_tags = shazam_parser.parse( html_parser.unescape(json_content) )
     
 
