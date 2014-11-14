@@ -6,7 +6,6 @@ def parse(content):
     titles_ok = []
     artists_ok = []
     delay_ok = []
-    one_day = 60*60*24
 
     parsed = BeautifulSoup(content)
 
@@ -23,7 +22,7 @@ def parse(content):
     for artist in artists:
         artists_ok += [artist.text]
 
-    final_list = [ (artists_ok[i], titles_ok[i]) for i in xrange(0,len(artists_ok)) if delay_ok[i] < one_day ]
+    final_list = [ (artists_ok[i], titles_ok[i], delay_ok[i]) for i in xrange(0,len(artists_ok)) ]
 
     return final_list
 

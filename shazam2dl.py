@@ -30,6 +30,7 @@ from os.path import isfile, join, getsize
 fb_login = ""
 fb_pass = ""
 dl_dir = ""
+get_all = False
 
 
 html_parser = HTMLParser.HTMLParser()
@@ -59,22 +60,50 @@ def add_proper_headers(http_req, accept, referer, cookie = ""):
 def get_shazam_tags(fat_cookie, uid_cookie):
     my_tags = []
     req = urllib2.Request("http://www.shazam.com/fragment/myshazam?size=large")
-    add_proper_headers( req, 
+    add_proper_headers( req,
                         accept = "application/json, text/javascript, */*; q=0.01",
                         referer = "http://www.shazam.com/myshazam",
                         cookie = "fat=" + fat_cookie + "; uid=" + uid_cookie + ";"
                       )
+
     resp = urllib2.urlopen(req).read()
-    #pp.pprint( json.loads(resp)['next'] )
     json_content = json.loads(resp)['feed']
-    all_tags = shazam_parser.parse( html_parser.unescape(json_content) )
-    
+
+    if not get_all:
+        all_tags = shazam_parser.parse( html_parser.unescape(json_content) )
+        delay_to_keep = 60*60*24
+    else:
+        print 'Getting all shazam tags ...'
+        all_tags = []
+        tmp_resp = resp
+        tmp_json = json_content
+        tmp_tags = shazam_parser.parse( html_parser.unescape(json_content) )
+        next_url = "http://www.shazam.com" + str(json.loads(resp)['previous']) + '&size=large'
+        while True:
+            all_tags += tmp_tags
+            if len(next_url) < 200:
+                break
+            else:
+                req = urllib2.Request(next_url)
+                add_proper_headers( req,
+                                    accept = "application/json, text/javascript, */*; q=0.01",
+                                    referer = "http://www.shazam.com/myshazam",
+                                    cookie = "fat=" + fat_cookie + "; uid=" + uid_cookie + ";" 
+                                  )
+                tmp_resp = urllib2.urlopen(req).read()
+                tmp_json = json.loads(tmp_resp)['feed']
+                tmp_tags = shazam_parser.parse( html_parser.unescape(tmp_json) )
+                next_url = "http://www.shazam.com" + str(json.loads(tmp_resp)['previous']) + '&size=large'
+
+        delay_to_keep = float("inf")
+        print 'Done ! (' + str(len(all_tags)) + ' tags)' + '\n'
 
     for tag in all_tags:
             artist = normalize_str(tag[0])
             title = normalize_str(tag[1])
+            delay = tag[2]
             filename = title + '-' + artist + ".mp3"
-            if { 'artist' : artist, 'title' : title } not in my_tags and filename not in already_dl:
+            if { 'artist' : artist, 'title' : title } not in my_tags and filename not in already_dl and delay < delay_to_keep:
                 my_tags += [{ 'artist' : artist, 'title' : title, 'filename' : filename }]
     return my_tags
     
@@ -127,17 +156,19 @@ def send_report(status,to):
 ## Parse Args
 ###################
 
-usage = "usage: %prog [options] facebook-login facebook-password target-dir"
+usage = "usage: %prog [options] facebook-login facebook-password target-dir [all]"
 parser = optparse.OptionParser(usage=usage)
 opt, args = parser.parse_args()
 
-if len(args) != 3:
+if len(args) != 3 and len(args) != 4:
     parser.print_help()
     sys.exit(1)
 else:
     fb_login = args[0]
     fb_pass = args[1]
     dl_dir = args[2]
+    if len(args) == 4 and args[3] == "all":
+        get_all = True
 
 
 
