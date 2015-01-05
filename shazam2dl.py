@@ -71,7 +71,7 @@ def get_shazam_tags(fat_cookie, uid_cookie):
 
     if not get_all:
         all_tags = shazam_parser.parse( html_parser.unescape(json_content) )
-        delay_to_keep = 60*60*24
+        delay_to_keep = 60*30
     else:
         print 'Getting all shazam tags ...'
         all_tags = []
